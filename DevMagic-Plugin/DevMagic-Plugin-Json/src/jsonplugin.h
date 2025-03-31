@@ -9,6 +9,7 @@
 #include <QHBoxLayout>
 #include <QMessageBox>
 #include <QJsonParseError>
+#include <QMap>
 #include "jsoneditor.h"
 #include "jsonconverter.h"
 #include "../include/devplugin.h"
@@ -17,7 +18,8 @@ class JsonToolWidget : public QWidget {
     Q_OBJECT
     JsonEditor *inputEditor;
     QTabWidget *outputTabs;
-    JsonConverter converter;
+    JsonConverter *converter;
+    QMap<QString,QWidget*> tabWidgetMap;
 
 public:
     JsonToolWidget(QWidget *parent = nullptr);
@@ -31,11 +33,14 @@ private slots:
     void validateJson();
 
 private:
+    void markError(const QJsonParseError &error);
+    void clearError();
     bool isUpdating;
     QWidget* createOutputWidget();
     void createFunctionButton(QBoxLayout *layout, const QString &text, std::function<void()> handler);
     void showParseError(const QJsonParseError &error);
-    void setOutputText(int tabIndex, const QString &text);
+    void setOutputText(const QString &tabName, const QString &text);
+    QTextEdit *findTextEdit(QObject *parent);
 };
 
 class JsonPlugin : public DevToolPlugin {

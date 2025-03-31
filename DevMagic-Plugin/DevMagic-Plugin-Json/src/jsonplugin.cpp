@@ -33,7 +33,6 @@ JsonToolWidget::JsonToolWidget(QWidget *parent) : QWidget(parent) {
             background: #357AB7;
         }
     )");
-
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(16, 16, 16, 16);
     mainLayout->setSpacing(12);
@@ -41,7 +40,7 @@ JsonToolWidget::JsonToolWidget(QWidget *parent) : QWidget(parent) {
     // 输入编辑器
     inputEditor = new JsonEditor(this);
     inputEditor->setPlaceholderText("输入JSON或粘贴原始数据...");
-    connect(inputEditor, &QPlainTextEdit::textChanged, this, &JsonToolWidget::validateJson); // 实时校验
+    connect(inputEditor, &JsonEditor::textChanged, this, &JsonToolWidget::validateJson); // 实时校验
     mainLayout->addWidget(inputEditor);
 
     // 功能按钮
@@ -74,16 +73,8 @@ JsonToolWidget::JsonToolWidget(QWidget *parent) : QWidget(parent) {
         QJsonDocument doc = QJsonDocument::fromJson(inputEditor->toPlainText().toUtf8(), &error);
         if (error.error != QJsonParseError::NoError) return;
 
-        if (target == "Java") {
-            QString javaCode = converter.toJavaClass(doc.object(), className);
-            setOutputText(0, javaCode);
-        } else if (target == "Go") {
-            QString goCode = converter.toGoStruct(doc.object(), className);
-            setOutputText(0, goCode);
-        } else if (target == "XML") {
-            QString xml = converter.toXml(doc.object());
-            setOutputText(0, xml);
-        }
+        QString javaCode = converter->convert(target,doc.object(), className);
+        setOutputText("结果", javaCode);
     });
     btnLayout->addWidget(convertBtn);
 
@@ -91,8 +82,11 @@ JsonToolWidget::JsonToolWidget(QWidget *parent) : QWidget(parent) {
 
     // 输出区域
     outputTabs = new QTabWidget(this);
-    outputTabs->addTab(createOutputWidget(), "结果");
+    QWidget* outputWidget =createOutputWidget();
+    outputTabs->addTab(outputWidget, "结果");
     mainLayout->addWidget(outputTabs);
+    tabWidgetMap.insert("结果",outputWidget);
+    converter = new JsonConverter();
 }
 
 void JsonToolWidget::createFunctionButton(QBoxLayout *layout, const QString &text, std::function<void()> handler) {
@@ -108,7 +102,7 @@ void JsonToolWidget::formatJson() {
     QJsonDocument doc = QJsonDocument::fromJson(inputEditor->toPlainText().toUtf8(), &error);
 
     if (error.error != QJsonParseError::NoError) {
-        inputEditor->markError(error); // 调用 JsonEditor 的 markError 方法
+        markError(error); // 调用 JsonEditor 的 markError 方法
         return;
     }
 
@@ -121,7 +115,7 @@ void JsonToolWidget::compressJson() {
     QJsonDocument doc = QJsonDocument::fromJson(inputEditor->toPlainText().toUtf8(), &error);
 
     if (error.error != QJsonParseError::NoError) {
-        inputEditor->markError(error); // 调用 JsonEditor 的 markError 方法
+        markError(error); // 调用 JsonEditor 的 markError 方法
         return;
     }
 
@@ -141,33 +135,72 @@ void JsonToolWidget::escapeJson() {
 }
 
 void JsonToolWidget::validateJson() {
-    if (isUpdating) return; // 如果正在更新，直接返回
-
-    isUpdating = true; // 设置标志位
     QJsonParseError error;
     QJsonDocument::fromJson(inputEditor->toPlainText().toUtf8(), &error);
-
     if (error.error != QJsonParseError::NoError) {
-        inputEditor->markError(error); // 调用 JsonEditor 的 markError 方法
-    } else {
-        inputEditor->clearError(); // 清除错误标记
+        markError(error); // 调用 JsonEditor 的 markError 方法
+    }else{
+        clearError();
     }
-    isUpdating = false; // 重置标志位
+
 }
-void JsonToolWidget::setOutputText(int tabIndex, const QString &text) {
-    static_cast<QTextEdit *>(outputTabs->widget(tabIndex))->setText(text);
+void JsonToolWidget::setOutputText(const QString &tabName, const QString &text) {
+    static_cast<QTextEdit *>(tabWidgetMap[tabName])->setText(text);
 }
 QWidget *JsonToolWidget::createOutputWidget() {
-    QWidget *widget = new QWidget(this);
-    QVBoxLayout *layout = new QVBoxLayout(widget);
-    layout->setContentsMargins(0, 0, 0, 0);
 
-    QTextEdit *outputEditor = new QTextEdit(widget);
+    QTextEdit *outputEditor = new QTextEdit();
     outputEditor->setReadOnly(true); // 设置为只读模式
     outputEditor->setStyleSheet("QTextEdit { background: #fafafa; }");
     outputEditor->setPlaceholderText("输出将显示在这里...");
 
-    layout->addWidget(outputEditor);
-    return widget;
+    return outputEditor;
 }
+void JsonToolWidget::markError(const QJsonParseError &error) {
+    if (error.error == QJsonParseError::NoError) {
+        return;
+    }
+    int line = inputEditor->getLineNumber(error.offset);
+    int column = inputEditor->getColumnNumber(error.offset);
+
+    setOutputText("结果",
+        QString("/* 错误：第%1行，第%2列：%3 */")
+            .arg(line)
+            .arg(column + 1)
+            .arg(error.errorString()));
+
+    return;
+}
+void JsonToolWidget::clearError() {
+    setOutputText("结果",QString(""));
+
+    return;
+}
+QTextEdit* JsonToolWidget::findTextEdit(QObject *parent) {
+    if (!parent) return nullptr;
+
+    // 检查当前对象是否是 QTextEdit
+    QTextEdit *textEdit = qobject_cast<QTextEdit *>(parent);
+    if (textEdit) {
+        return textEdit;
+    }
+
+    // 遍历子对象
+    for (QObject *child : parent->children()) {
+        QTextEdit *result = findTextEdit(child);
+        if (result) {
+            return result;
+        }
+    }
+
+    return nullptr;
+}
+// // 清除错误标记
+// void JsonToolWidget::clearError() {
+//     QTextCursor cursor(document());
+//     cursor.movePosition(QTextCursor::End);
+//     cursor.select(QTextCursor::LineUnderCursor);
+//     cursor.removeSelectedText();
+//     cursor.deletePreviousChar(); // 删除多余的换行符
+// }
 #include "jsonplugin.moc"

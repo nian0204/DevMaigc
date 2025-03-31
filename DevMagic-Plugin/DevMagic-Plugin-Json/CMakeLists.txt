@@ -34,13 +34,6 @@ set(CMAKE_AUTORCC ON)        # 自动处理QRC资源
 set(CMAKE_INCLUDE_CURRENT_DIR ON) # 包含当前目录
 
 
-# ========== 资源文件处理 ==========
-# 1. 生成元数据文件（含版本注入）
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/resources/plugin.json.in
-    ${CMAKE_CURRENT_BINARY_DIR}/resources/plugin.json
-)
-
 # 2. 定义资源清单（包含图标和元数据）
 qt6_add_resources(RESOURCES
     "resources/icons.qrc"
@@ -53,7 +46,12 @@ qt6_add_resources(RESOURCES
 add_executable(DevMagicPluginJson ${SOURCES} ${RESOURCES}
     src/main.cpp
     src/linenumberarea.h
-    src/jsoneditor.cpp)
+    src/jsoneditor.cpp
+
+    src/javaconverter.h
+    src/goconverter.h
+    src/xmlconverter.h
+)
 
 # 设置头文件目录（必须在 add_library 之后）
 target_include_directories(DevMagicPluginJson PRIVATE

@@ -206,3 +206,25 @@ void JsonEditor::lineNumberAreaPaintEvent(QPaintEvent *event) {
         blockNumber++;
     }
 }
+// 获取行号（从1开始，基于文本位置）
+int JsonEditor::getLineNumber(int position) const {
+    if (position < 0) return 0;
+    QTextBlock block = document()->findBlock(position);
+    return block.isValid() ? block.blockNumber() + 1 : 0;
+}
+
+// 获取列号（从0开始，基于文本位置）
+int JsonEditor::getColumnNumber(int position) const {
+    QTextBlock block = document()->findBlock(position);
+    return block.isValid() ? (position - block.position()) : 0;
+}
+void JsonEditor::setCursorPosition(int line, int column) {
+    QTextBlock block = document()->findBlockByNumber(line - 1);
+    if (!block.isValid()) return;
+
+    int pos = block.position() + column;
+    QTextCursor cursor(document());
+    cursor.setPosition(pos);
+    setTextCursor(cursor);
+    ensureCursorVisible();
+}
