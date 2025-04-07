@@ -10,6 +10,33 @@ PluginManagedTabWidget::PluginManagedTabWidget(PluginsManager *manager, QWidget 
     connect(m_pluginManager, &PluginsManager::pluginsAdded, this, &PluginManagedTabWidget::onPluginsAdded);
     // connect(m_pluginManager, &PluginsManager::pluginsRemoved, this, &PluginManagedTabWidget::onPluginRemoved);
     // connect(m_pluginManager, &PluginsManager::pluginsMapUpdated, this, &PluginManagedTabWidget::onPluginMapUpdated);
+
+    // 应用样式表
+    // setStyleSheet(R"(
+    //     QTabWidget::pane {
+    //         background: #f5f5f5; /* 右侧背景颜色 */
+    //         border: none;
+    //         border-radius: 4px;
+    //     }
+    //     QTabBar::tab {
+    //         background: #f9f9f9; /* Tab 背景颜色 */
+    //         color: #333; /* 深灰文字 */
+    //         font-family: 'Segoe UI';
+    //         font-size: 14px;
+    //         padding: 8px 16px;
+    //         margin-right: 4px;
+    //         border-top-left-radius: 4px;
+    //         border-top-right-radius: 4px;
+    //         border: none;
+    //     }
+    //     QTabBar::tab:selected {
+    //         background: #4A90E2; /* 主色填充 */
+    //         color: white;
+    //     }
+    //     QTabBar::tab:hover {
+    //         background: #f0f0f0; /* 悬停色接近右侧输入框悬停 */
+    //     }
+    // )");
 }
 
 PluginManagedTabWidget::~PluginManagedTabWidget() {
@@ -95,4 +122,18 @@ void PluginManagedTabWidget::setupTabResizeHandle() {
     splitter->setStretchFactor(1, 3); // 内容区域优先调整
 
     setParent(splitter);
+    qDebug()<<"123123";
+}
+
+void PluginManagedTabWidget::setPluginManager(PluginsManager *m_pluginManager){
+    this->m_pluginManager = m_pluginManager;
+    clear();
+    m_pluginMap.clear();
+
+    // 添加新的插件
+    for (auto it = m_pluginManager->getPlugins().begin(); it != m_pluginManager->getPlugins().begin(); ++it) {
+        m_pluginMap[it.key()] = it.value();
+    }
+
+    addPluginToTabs(m_pluginMap);
 }

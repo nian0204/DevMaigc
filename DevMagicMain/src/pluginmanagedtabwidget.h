@@ -11,6 +11,8 @@ public:
     explicit PluginManagedTabWidget(PluginsManager *manager, QWidget *parent = nullptr);
     ~PluginManagedTabWidget() override;
 
+    void setPluginManager(PluginsManager *m_pluginManager);
+
 private slots:
     // 处理插件添加
     void onPluginsAdded(const QMap<QString, DevToolPlugin *> &newMap);

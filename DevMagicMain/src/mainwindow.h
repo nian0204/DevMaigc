@@ -13,15 +13,11 @@ class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget* parent = nullptr);
+    explicit MainWindow(PluginsManager * manager  = nullptr,QWidget* parent = nullptr);
     void setPlugins(PluginsManager * manager);
 
 private:
     PluginManagedTabWidget * pluginTabWidget;
-    QListView* listView;
-    QStringListModel* listModel;
-    QStackedWidget* stackedWidget;
-    QSplitter* splitter;
     QToolBar* createToolBar();
     PluginsManager *pluginsManager;
     void onSettings();

@@ -31,8 +31,7 @@ int main(int argc, char *argv[]) {
     PluginsManager *pluginsManager = new PluginsManager(Application::pluginsPath());
     pluginsManager->loadPlugins();
 
-    MainWindow mainWindow;
-    mainWindow.setPlugins(pluginsManager);
+    MainWindow mainWindow(pluginsManager);
     mainWindow.show();
 
     return app.exec();
