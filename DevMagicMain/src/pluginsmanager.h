@@ -17,7 +17,7 @@ const QStringList FILTERS = []()->QStringList{
     return filters;
 }();
 
-class PluginsManager:QObject{
+class PluginsManager:public QObject{
     Q_OBJECT
 private:
     QString pluginsPath;
@@ -27,10 +27,10 @@ private:
 
 signals:
     // 插件添加信号
-    void pluginsAdded(QMap<QString, DevToolPlugin *> plugins);
+    void pluginsAdded(QMap<QString, DevToolPlugin *> &plugins);
 
     // 插件移除信号
-    void pluginRemoved(QMap<QString, DevToolPlugin *> plugins);
+    void pluginRemoved(QMap<QString, DevToolPlugin *> &plugins);
 
     // 插件映射表更新信号
     void pluginMapUpdated(const QMap<QString, DevToolPlugin *> &newMap);

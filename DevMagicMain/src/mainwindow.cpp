@@ -9,25 +9,54 @@
 #include <QIcon>
 #include <QDebug>
 #include "pluginmanagerdialog.h"
+#include "PluginManagedTabWidget.h"
 
 MainWindow::MainWindow(QWidget* parent)
-    : QMainWindow(parent), listView(new QListView(this)), listModel(new QStringListModel(this)), stackedWidget(new QStackedWidget(this)) {
+    : QMainWindow(parent), listView(new QListView(this)), listModel(new QStringListModel(this)) {
     setupUI();
 }
 
-void MainWindow::setPlugins(PluginsManager * manager) {
+void MainWindow::setPlugins(PluginsManager* manager) {
     this->pluginsManager = manager;
-    QStringList pluginNames;
 
+    // 创建 PluginManagedTabWidget 并绑定 PluginManager
+    pluginTabWidget = new PluginManagedTabWidget(manager, this);
+
+    // 设置插件 TabWidget 样式
+    pluginTabWidget->setStyleSheet(R"(
+        QTabWidget::pane {
+            background: #f5f5f5; /* 右侧背景颜色 */
+            border: none;
+            border-radius: 4px;
+        }
+        QTabBar::tab {
+            background: #f9f9f9; /* Tab 背景颜色 */
+            color: #333; /* 深灰文字 */
+            font-family: 'Segoe UI';
+            font-size: 14px;
+            padding: 8px 16px;
+            margin-right: 4px;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            border: none;
+        }
+        QTabBar::tab:selected {
+            background: #4A90E2; /* 主色填充 */
+            color: white;
+        }
+        QTabBar::tab:hover {
+            background: #f0f0f0; /* 悬停色接近右侧输入框悬停 */
+        }
+    )");
+
+    // 填充插件列表
+    QStringList pluginNames;
     for (const auto& plugin : this->pluginsManager->getPlugins().values()) {
         pluginNames.append(plugin->toolName()); // 使用插件名称填充列表
-        stackedWidget->addWidget(plugin->createToolWidget()); // 创建插件页面并添加到stackedWidget
     }
 
     listModel->setStringList(pluginNames); // 设置插件名称模型
     listView->setModel(listModel);
-
-
 
     // 美化左侧栏
     listView->setItemDelegate(new QStyledItemDelegate(listView)); // 使用默认样式代理
@@ -67,13 +96,16 @@ void MainWindow::setPlugins(PluginsManager * manager) {
     // 新增分割线（模拟右侧工具的边框）
     splitter->setStyleSheet("QSplitter::handle { background: #ddd; width: 1px; }");
 
-    // 连接listView的选择信号到stackedWidget的切换槽
+    // 连接listView的选择信号到pluginTabWidget的切换槽
     connect(listView->selectionModel(), &QItemSelectionModel::currentChanged,
             [this](const QModelIndex& current, const QModelIndex&) {
                 if (current.isValid()) {
-                    stackedWidget->setCurrentIndex(current.row());
+                    QString selectedPluginId = this->pluginsManager->getPlugins().keys().at(current.row());
+                    int tabIndex = pluginTabWidget->indexOf(this->pluginsManager->getPlugins()[selectedPluginId]->createToolWidget());
+                    pluginTabWidget->setCurrentIndex(tabIndex);
                 }
             });
+
     // 默认选择第一个插件
     if (!pluginNames.isEmpty()) {
         listView->setCurrentIndex(listModel->index(0));
@@ -95,8 +127,8 @@ void MainWindow::setupUI() {
     splitter->addWidget(listView);
 
     // 右侧插件内容区域
-    stackedWidget->setStyleSheet("background-color: #f5f5f5;"); // 设置背景颜色
-    splitter->addWidget(stackedWidget);
+    pluginTabWidget = new PluginManagedTabWidget(nullptr, this); // 初始化为空
+    splitter->addWidget(pluginTabWidget);
 
     // 设置分割器初始比例
     splitter->setStretchFactor(0, 1); // 左侧占1份
@@ -148,27 +180,12 @@ void MainWindow::onPlugin() {
         }
         listModel->setStringList(enabledPlugins);
 
-        // 清空 stackedWidget
-        stackedWidget->clear();
-
-        // 重新添加启用的插件页面
-        int currentIndex = -1;
-        int index = 0;
-        for (const auto& plugin : this->pluginsManager->getPlugins().values()) {
-            if (!disabledPlugins.contains(plugin->toolId())) {
-                stackedWidget->addWidget(plugin->createToolWidget());
-
-                // 记录第一个启用插件的索引
-                if (currentIndex == -1) {
-                    currentIndex = index;
-                }
-                ++index;
-            }
-        }
+        // 更新 PluginManagedTabWidget
+        // pluginTabWidget->updatePluginMap(this->pluginsManager->getPlugins());
 
         // 默认选择第一个启用的插件
-        if (currentIndex != -1) {
-            listView->setCurrentIndex(listModel->index(currentIndex));
+        if (!enabledPlugins.isEmpty()) {
+            listView->setCurrentIndex(listModel->index(0));
         }
     }
 }

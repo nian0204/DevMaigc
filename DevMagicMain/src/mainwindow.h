@@ -8,6 +8,7 @@
 #include <QSplitter>
 #include "devplugin.h"
 #include "pluginsmanager.h"
+#include "pluginmanagedtabwidget.h"
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
@@ -16,6 +17,7 @@ public:
     void setPlugins(PluginsManager * manager);
 
 private:
+    PluginManagedTabWidget * pluginTabWidget;
     QListView* listView;
     QStringListModel* listModel;
     QStackedWidget* stackedWidget;
