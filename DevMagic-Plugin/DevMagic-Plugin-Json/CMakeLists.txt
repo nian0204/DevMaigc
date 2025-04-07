@@ -21,7 +21,7 @@ add_compile_options(
 
 # ========== 源文件与头文件 ==========
 set(SOURCES
-    src/main
+    # src/main
     src/jsonplugin.cpp  # 唯一编译单元
     src/jsonconverter.h
     src/jsoneditor.h
@@ -40,11 +40,7 @@ qt6_add_resources(RESOURCES
 )
 
 # ========== 插件目标配置 ==========
-# add_library(DevMagicPluginJson SHARED ${SOURCES} ${RESOURCES}
-#     src/main.cpp)
-
-add_executable(DevMagicPluginJson ${SOURCES} ${RESOURCES}
-    src/main.cpp
+add_library(DevMagicPluginJson SHARED ${SOURCES} ${RESOURCES}
     src/linenumberarea.h
     src/jsoneditor.cpp
 
@@ -52,6 +48,16 @@ add_executable(DevMagicPluginJson ${SOURCES} ${RESOURCES}
     src/goconverter.h
     src/xmlconverter.h
 )
+
+# add_executable(DevMagicPluginJson ${SOURCES} ${RESOURCES}
+#     src/main.cpp
+#     src/linenumberarea.h
+#     src/jsoneditor.cpp
+
+#     src/javaconverter.h
+#     src/goconverter.h
+#     src/xmlconverter.h
+# )
 
 # 设置头文件目录（必须在 add_library 之后）
 target_include_directories(DevMagicPluginJson PRIVATE
@@ -76,8 +82,8 @@ target_link_libraries(DevMagicPluginJson PRIVATE
 target_sources(DevMagicPluginJson PRIVATE
     ${QRC_RESOURCES}
 )
-# install(TARGETS DevMagicPluginJson
-#     RUNTIME DESTINATION "plugins"  COMPONENT runtime  # Windows DLL
-#     LIBRARY DESTINATION "plugins"  COMPONENT runtime  # Linux/macOS 动态库
-#     ARCHIVE DESTINATION "lib"      COMPONENT dev      # 静态库（可选）
-# )
+install(TARGETS DevMagicPluginJson
+    RUNTIME DESTINATION "plugins"  COMPONENT runtime  # Windows DLL
+    LIBRARY DESTINATION "plugins"  COMPONENT runtime  # Linux/macOS 动态库
+    ARCHIVE DESTINATION "lib"      COMPONENT dev      # 静态库（可选）
+)

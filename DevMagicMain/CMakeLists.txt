@@ -36,6 +36,12 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON) # 包含当前目录
 #### **主程序目标**
 add_executable(DevMagic
     ${SOURCES}
+    src/configmanager.h src/configmanager.cpp
+    src/pluginsmanager.h src/pluginsmanager.cpp
+    src/application.h
+    src/settingsdialog.h src/settingsdialog.cpp
+    src/pluginmanagerdialog.h src/pluginmanagerdialog.cpp
+    src/pluginmanagedtabwidget.h src/pluginmanagedtabwidget.cpp
 )
 target_link_libraries(DevMagic PRIVATE
     Qt6::Core

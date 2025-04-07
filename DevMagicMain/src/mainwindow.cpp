@@ -4,24 +4,30 @@
 #include <QWidget>
 #include <QSplitter>
 #include <QStyledItemDelegate>
+#include <QToolBar>
+#include <QAction>
+#include <QIcon>
 #include <QDebug>
-
+#include "pluginmanagerdialog.h"
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent), listView(new QListView(this)), listModel(new QStringListModel(this)), stackedWidget(new QStackedWidget(this)) {
     setupUI();
 }
 
-void MainWindow::setPlugins(const QList<DevToolPlugin*>& plugins) {
+void MainWindow::setPlugins(PluginsManager * manager) {
+    this->pluginsManager = manager;
     QStringList pluginNames;
 
-    for (const auto& plugin : plugins) {
+    for (const auto& plugin : this->pluginsManager->getPlugins().values()) {
         pluginNames.append(plugin->toolName()); // 使用插件名称填充列表
         stackedWidget->addWidget(plugin->createToolWidget()); // 创建插件页面并添加到stackedWidget
     }
 
     listModel->setStringList(pluginNames); // 设置插件名称模型
     listView->setModel(listModel);
+
+
 
     // 美化左侧栏
     listView->setItemDelegate(new QStyledItemDelegate(listView)); // 使用默认样式代理
@@ -68,7 +74,6 @@ void MainWindow::setPlugins(const QList<DevToolPlugin*>& plugins) {
                     stackedWidget->setCurrentIndex(current.row());
                 }
             });
-
     // 默认选择第一个插件
     if (!pluginNames.isEmpty()) {
         listView->setCurrentIndex(listModel->index(0));
@@ -103,4 +108,73 @@ void MainWindow::setupUI() {
 
     setCentralWidget(centralWidget);
     resize(800, 600); // 设置窗口大小
+
+    // 添加顶部工具栏
+    addToolBar(createToolBar());
+}
+
+// 创建顶部工具栏
+QToolBar* MainWindow::createToolBar() {
+    QToolBar* toolBar = new QToolBar("Main Toolbar", this);
+
+    // 增加插件操作
+    QAction* addAction = new QAction(QIcon(":/icons/add_plugin.png"), tr("Plugins"), this);
+    addAction->setStatusTip(tr("Manage your plugins"));
+    connect(addAction, &QAction::triggered, this, &MainWindow::onPlugin);
+    toolBar->addAction(addAction);
+
+    // 设置操作
+    QAction* settingsAction = new QAction(QIcon(":/icons/settings.png"), tr("Settings"), this);
+    settingsAction->setStatusTip(tr("Open settings"));
+    connect(settingsAction, &QAction::triggered, this, &MainWindow::onSettings);
+    toolBar->addAction(settingsAction);
+
+    return toolBar;
+}
+
+// 处理增加插件的操作
+void MainWindow::onPlugin() {
+    PluginManagerDialog dialog(this->pluginsManager, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        // 获取被禁用的插件 ID
+        QStringList disabledPlugins = dialog.disabledPlugins();
+
+        // 更新插件列表
+        QStringList enabledPlugins;
+        for (const auto& plugin : this->pluginsManager->getPlugins().values()) {
+            if (!disabledPlugins.contains(plugin->toolId())) {
+                enabledPlugins.append(plugin->toolName());
+            }
+        }
+        listModel->setStringList(enabledPlugins);
+
+        // 清空 stackedWidget
+        stackedWidget->clear();
+
+        // 重新添加启用的插件页面
+        int currentIndex = -1;
+        int index = 0;
+        for (const auto& plugin : this->pluginsManager->getPlugins().values()) {
+            if (!disabledPlugins.contains(plugin->toolId())) {
+                stackedWidget->addWidget(plugin->createToolWidget());
+
+                // 记录第一个启用插件的索引
+                if (currentIndex == -1) {
+                    currentIndex = index;
+                }
+                ++index;
+            }
+        }
+
+        // 默认选择第一个启用的插件
+        if (currentIndex != -1) {
+            listView->setCurrentIndex(listModel->index(currentIndex));
+        }
+    }
+}
+
+// 处理设置的操作
+void MainWindow::onSettings() {
+    qDebug() << "Settings action triggered";
+    // 在这里实现具体的逻辑，例如打开设置界面
 }
