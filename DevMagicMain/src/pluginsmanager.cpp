@@ -32,6 +32,7 @@ void PluginsManager::loadPlugins() {
             if (loader.load()) {
                 if (auto plugin = qobject_cast<DevToolPlugin *>(loader.instance())) {
                     plugins[plugin->toolId()] = plugin; // 使用 pluginId 作为键
+                    plugin->init(pluginsPath);
                     qDebug() << "加载插件成功 -" << plugin->toolName() << " (" << plugin->toolId() << ")";
                 } else {
                     qWarning() << "插件格式错误 -" << file.fileName();

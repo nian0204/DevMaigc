@@ -41,12 +41,14 @@ add_executable(DevMagic
     src/application.h
     src/settingsdialog.h src/settingsdialog.cpp
     src/pluginmanagerdialog.h src/pluginmanagerdialog.cpp
-    src/pluginmanagedtabwidget.h src/pluginmanagedtabwidget.cpp
+    src/listwidegt.h src/listwidegt.cpp
+
 )
 target_link_libraries(DevMagic PRIVATE
     Qt6::Core
     Qt6::Gui
     Qt6::Widgets
+    Qt6::Network
 )
 target_include_directories(DevMagic PRIVATE
     src

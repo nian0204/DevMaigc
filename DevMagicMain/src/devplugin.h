@@ -18,16 +18,24 @@ class DevToolPlugin : public QObject {
 
 public:
     virtual ~DevToolPlugin() = default;
+    QWidget *widget;
+    void init(QString pluginPath){
+        this->pluginPath = pluginPath+"/"+toolId();
+        widget = createToolWidget();
+    }
 
     [[nodiscard]] virtual QString toolId() const = 0;
     [[nodiscard]] virtual QString toolName() const = 0;
     [[nodiscard]] virtual QIcon toolIcon() const = 0;
-    [[nodiscard]] virtual QWidget *createToolWidget() = 0;
 
     // 可选：支持命令行工具
     virtual void runCommand(const QStringList &args) {
         Q_UNUSED(args);
     }
+protected:
+    QString pluginPath;
+    [[nodiscard]] virtual QWidget *createToolWidget() = 0;
+
 };
 
 #endif // DEVPLUGIN_H
