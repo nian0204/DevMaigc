@@ -1,78 +1,190 @@
 #include "configmanager.h"
 #include "application.h"
+#include <QCoreApplication>
+#include <QDebug>
 
-DevConfig::DevConfig(QObject *parent) : QObject(parent) {
-    initConfigFile(); // 初始化配置文件
+// Config 类实现
+Config::Config() {
+    initDefaultValues();
 }
 
-QString DevConfig::theme() const {
-    return getConfigValue("theme", "auto").toString();
+void Config::initDefaultValues() {
+    theme = "auto";
+    language = "zh_CN";
+    enabledPlugins.clear();
+    disabledPlugins.clear();
 }
 
-QString DevConfig::language() const {
-    return getConfigValue("language", "zh_CN").toString();
+Config &Config::getInstance() {
+    static Config instance; // 单例实例
+    return instance;
 }
 
-void DevConfig::setTheme(const QString &val) {
-    if (val == theme()) return;
-    setConfigValue("theme", val);
+void Config::updateFromJson(const QJsonObject &json) {
+    if (json.contains("theme") && json["theme"].isString()) {
+        theme = json["theme"].toString();
+    }
+    if (json.contains("language") && json["language"].isString()) {
+        language = json["language"].toString();
+    }
+    if (json.contains("plugins") && json["plugins"].isObject()) {
+        QJsonObject pluginsObj = json["plugins"].toObject();
+        if (pluginsObj.contains("enable") && pluginsObj["enable"].isArray()) {
+            for (const QJsonValue &value : pluginsObj["enable"].toArray()) {
+                if (value.isObject()) {
+                    QJsonObject pluginObj = value.toObject();
+                    PluginMetaData metaData{
+                        pluginObj["name"].toString(),
+                        pluginObj["id"].toString(),
+                        pluginObj["version"].toString()
+                    };
+                    enabledPlugins.append(metaData);
+                }
+            }
+        }
+        if (pluginsObj.contains("disable") && pluginsObj["disable"].isArray()) {
+            for (const QJsonValue &value : pluginsObj["disable"].toArray()) {
+                if (value.isObject()) {
+                    QJsonObject pluginObj = value.toObject();
+                    PluginMetaData metaData{
+                        pluginObj["name"].toString(),
+                        pluginObj["id"].toString(),
+                        pluginObj["version"].toString()
+                    };
+                    disabledPlugins.append(metaData);
+                }
+            }
+        }
+    }
+}
+
+// ConfigManager 类实现
+ConfigManager::ConfigManager(QObject *parent) :
+    QObject(parent),
+    m_config(Config::getInstance()) {
+    loadConfig(); // 初始化时加载配置文件
+}
+
+ConfigManager::~ConfigManager() {
+    saveConfig(); // 释放时保存配置文件
+}
+
+QString ConfigManager::configFilePath() const {
+    return Application::configPath() + "/devmagic_main_config.json";
+}
+
+QString ConfigManager::theme() const {
+    return m_config.theme;
+}
+
+QString ConfigManager::language() const {
+    return m_config.language;
+}
+
+void ConfigManager::setTheme(const QString &val) {
+    if (val == m_config.theme) return;
+    m_config.theme = val;
     emit themeChanged();
 }
 
-void DevConfig::setLanguage(const QString &val) {
-    if (val == language()) return;
-    setConfigValue("language", val);
+void ConfigManager::setLanguage(const QString &val) {
+    if (val == m_config.language) return;
+    m_config.language = val;
     emit languageChanged();
 }
 
-QJsonValue DevConfig::getConfigValue(const QString &key, const QJsonValue &defaultVal) const {
-    QFile file(configFilePath());
-    if (!file.open(QIODevice::ReadOnly)) {
-        qWarning() << "无法读取配置文件：" << configFilePath() << "，使用默认值：" << key;
-        return defaultVal;
-    }
-
-    QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
-    if (doc.isNull()) {
-        qWarning() << "配置文件内容无效：" << configFilePath();
-        return defaultVal;
-    }
-
-    return doc.object().value(key).isNull() ? defaultVal : doc.object().value(key);
+QList<Config::PluginMetaData> ConfigManager::getEnabledPlugins() const {
+    return m_config.enabledPlugins;
 }
 
-void DevConfig::setConfigValue(const QString &key, const QJsonValue &val) {
+QList<Config::PluginMetaData> ConfigManager::getDisabledPlugins() const {
+    return m_config.disabledPlugins;
+}
+
+void ConfigManager::enablePlugin(const Config::PluginMetaData &plugin) {
+    auto it = std::find(m_config.disabledPlugins.begin(), m_config.disabledPlugins.end(), plugin);
+    if (it != m_config.disabledPlugins.end()) {
+        m_config.disabledPlugins.erase(it);
+    }
+
+    if (!std::count(m_config.enabledPlugins.begin(), m_config.enabledPlugins.end(), plugin)) {
+        m_config.enabledPlugins.append(plugin);
+    }
+}
+
+void ConfigManager::disablePlugin(const Config::PluginMetaData &plugin) {
+    auto it = std::find(m_config.enabledPlugins.begin(), m_config.enabledPlugins.end(), plugin);
+    if (it != m_config.enabledPlugins.end()) {
+        m_config.enabledPlugins.erase(it);
+    }
+
+    if (!std::count(m_config.disabledPlugins.begin(), m_config.disabledPlugins.end(), plugin)) {
+        m_config.disabledPlugins.append(plugin);
+    }
+}
+
+void ConfigManager::setEnabledPlugins(QList<Config::PluginMetaData> plugins){
+    m_config.enabledPlugins = plugins;
+}
+void ConfigManager::setDisabledPlugins(QList<Config::PluginMetaData> plugins){
+    m_config.disabledPlugins = plugins;
+}
+void ConfigManager::loadConfig() {
     QFile file(configFilePath());
-    if (!file.open(QIODevice::ReadWrite)) {
-        qCritical() << "无法写入配置文件：" << configFilePath();
+    if (!file.exists()) {
+        qWarning() << "配置文件不存在，使用默认值：" << configFilePath();
+        return;
+    }
+
+    if (!file.open(QIODevice::ReadOnly)) {
+        qCritical() << "无法读取配置文件：" << configFilePath();
         return;
     }
 
     QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
-    QJsonObject obj = doc.object();
-    obj[key] = val;
-    file.resize(0); // 清空文件
-    file.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
-}
-
-void DevConfig::initConfigFile() const {
-    if (QFile::exists(configFilePath())) return;
-
-    QDir().mkpath(Application::configPath());
-    QJsonObject defaultConfig{
-        {"theme", "auto"},
-        {"language", "zh_CN"},
-        {"windowState", QJsonArray()}
-    };
-
-    QFile file(configFilePath());
-    if (file.open(QIODevice::WriteOnly)) {
-        file.write(QJsonDocument(defaultConfig).toJson());
-    } else {
-        qCritical() << "无法创建默认配置文件：" << configFilePath();
+    if (doc.isNull() || !doc.isObject()) {
+        qCritical() << "配置文件内容无效：" << configFilePath();
+        return;
     }
+
+    m_config.updateFromJson(doc.object());
 }
 
-QString DevConfig::configFilePath() const {
-    return Application::configPath() + "/devmagic_main_config.json";
+void ConfigManager::saveConfig() {
+    QFile file(configFilePath());
+    if (!file.open(QIODevice::WriteOnly)) {
+        qCritical() << "无法写入配置文件：" << configFilePath();
+        return;
+    }
+
+    QJsonObject json;
+    json["theme"] = m_config.theme;
+    json["language"] = m_config.language;
+
+    QJsonObject pluginsObj;
+    QJsonArray enabledArray, disabledArray;
+
+    for (const auto &plugin : m_config.enabledPlugins) {
+        QJsonObject pluginObj{
+            {"name", plugin.name},
+            {"id", plugin.id},
+            {"version", plugin.version}
+        };
+        enabledArray.append(pluginObj);
+    }
+
+    for (const auto &plugin : m_config.disabledPlugins) {
+        QJsonObject pluginObj{
+            {"name", plugin.name},
+            {"id", plugin.id},
+            {"version", plugin.version}
+        };
+        disabledArray.append(pluginObj);
+    }
+
+    pluginsObj["enable"] = enabledArray;
+    pluginsObj["disable"] = disabledArray;
+    json["plugins"] = pluginsObj;
+
+    file.write(QJsonDocument(json).toJson(QJsonDocument::Indented));
 }

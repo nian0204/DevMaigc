@@ -26,9 +26,9 @@ int main(int argc, char *argv[]) {
 
     if (!Application::initApplication()) return -1;
 
-    DevConfig config;
+    ConfigManager* config = new ConfigManager();
 
-    PluginsManager *pluginsManager = new PluginsManager(Application::pluginsPath());
+    PluginsManager *pluginsManager = new PluginsManager(Application::pluginsPath(),config);
     pluginsManager->loadPlugins();
 
     MainWindow mainWindow;

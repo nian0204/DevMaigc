@@ -45,12 +45,13 @@ private:
 
 class JsonPlugin : public DevToolPlugin {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "forever.landc.devmagic.plugin.json/1.0")
+    Q_PLUGIN_METADATA(IID "forever.landc.devmagic.plugin.json")
     Q_INTERFACES(DevToolPlugin)
 
 public:
-    QString toolId() const override { return "DevMagicPluginJson"; }
+    QString toolId() const override { return "LandcDevMagicPluginJson"; }
     QString toolName() const override { return "JSON工具箱"; }
+    QString toolVersion() const override { return "1.0"; }
     QIcon toolIcon() const override { return QIcon("icons/json.svg"); }
     QWidget* createToolWidget() override { return new JsonToolWidget(); }
 };

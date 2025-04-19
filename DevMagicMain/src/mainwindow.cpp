@@ -47,7 +47,7 @@ void MainWindow::onPlugin() {
     PluginManagerDialog dialog(this->pluginsManager, this);
     if (dialog.exec() == QDialog::Accepted) {
         // 获取被禁用的插件 ID
-        QStringList disabledPlugins = dialog.disabledPlugins();
+        // QStringList disabledPlugins = dialog.disabledPlugins();
     }
 }
 

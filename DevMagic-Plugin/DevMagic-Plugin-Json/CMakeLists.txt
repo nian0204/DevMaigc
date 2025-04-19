@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(DevMagicPluginJson LANGUAGES CXX)
+project(LandcDevMagicPluginJson LANGUAGES CXX)
 
 #### **核心配置：指定LLVM-Mingw**
 set(CMAKE_CXX_COMPILER "Z:/software/qt/Tools/llvm-mingw1706_64/bin/clang++.exe" CACHE PATH "C++ Compiler")
@@ -40,7 +40,7 @@ qt6_add_resources(RESOURCES
 )
 
 # ========== 插件目标配置 ==========
-add_library(DevMagicPluginJson SHARED ${SOURCES} ${RESOURCES}
+add_library(LandcDevMagicPluginJson SHARED ${SOURCES} ${RESOURCES}
     src/linenumberarea.h
     src/jsoneditor.cpp
 
@@ -49,7 +49,7 @@ add_library(DevMagicPluginJson SHARED ${SOURCES} ${RESOURCES}
     src/xmlconverter.h
 )
 
-# add_executable(DevMagicPluginJson ${SOURCES} ${RESOURCES}
+# add_executable(LandcDevMagicPluginJson ${SOURCES} ${RESOURCES}
 #     src/main.cpp
 #     src/linenumberarea.h
 #     src/jsoneditor.cpp
@@ -60,29 +60,29 @@ add_library(DevMagicPluginJson SHARED ${SOURCES} ${RESOURCES}
 # )
 
 # 设置头文件目录（必须在 add_library 之后）
-target_include_directories(DevMagicPluginJson PRIVATE
+target_include_directories(LandcDevMagicPluginJson PRIVATE
     src
     include
 )
 
 # 设置输出名称和目录
-set_target_properties(DevMagicPluginJson PROPERTIES
-    OUTPUT_NAME "DevMagicPluginJson"  # 最终DLL/so名称
+set_target_properties(LandcDevMagicPluginJson PROPERTIES
+    OUTPUT_NAME "LandcDevMagicPluginJson"  # 最终DLL/so名称
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/plugins"
     CXX_VISIBILITY_PRESET hidden  # 隐藏非导出符号
 )
 
 # ========== 链接与编译选项 ==========
-target_link_libraries(DevMagicPluginJson PRIVATE
+target_link_libraries(LandcDevMagicPluginJson PRIVATE
     Qt6::Widgets
     Qt6::Xml
     Qt6::Core
 )
 
-target_sources(DevMagicPluginJson PRIVATE
+target_sources(LandcDevMagicPluginJson PRIVATE
     ${QRC_RESOURCES}
 )
-install(TARGETS DevMagicPluginJson
+install(TARGETS LandcDevMagicPluginJson
     RUNTIME DESTINATION "plugins"  COMPONENT runtime  # Windows DLL
     LIBRARY DESTINATION "plugins"  COMPONENT runtime  # Linux/macOS 动态库
     ARCHIVE DESTINATION "lib"      COMPONENT dev      # 静态库（可选）

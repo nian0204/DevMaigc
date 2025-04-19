@@ -3,16 +3,13 @@
 #include <QFileInfo>
 #include <QDebug>
 
-// 构造函数
-PluginsManager::PluginsManager(const QString &path)
-    : pluginsPath(path) {}
+PluginsManager::PluginsManager(const QString &path, ConfigManager *configManager)
+    : pluginsPath(path), configManager(configManager) {}
 
-// 设置插件路径
 void PluginsManager::setPluginPath(const QString &path) {
     pluginsPath = path;
 }
 
-// 加载插件
 void PluginsManager::loadPlugins() {
     QDir pluginsDir(pluginsPath);
     if (!pluginsDir.exists()) {
@@ -21,7 +18,14 @@ void PluginsManager::loadPlugins() {
         return;
     }
 
-    // 遍历每个插件子目录
+    // 清空当前插件列表
+    plugins.clear();
+
+    // 获取启用和禁用的插件列表
+    auto enabledPlugins = configManager->getEnabledPlugins();
+    auto disabledPlugins = configManager->getDisabledPlugins();
+
+    // 扫描所有插件
     foreach (const QString &pluginId, pluginsDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
         QString pluginDirPath = pluginsDir.filePath(pluginId);
         QDir pluginDir(pluginDirPath);
@@ -31,69 +35,88 @@ void PluginsManager::loadPlugins() {
             QPluginLoader loader(file.absoluteFilePath());
             if (loader.load()) {
                 if (auto plugin = qobject_cast<DevToolPlugin *>(loader.instance())) {
-                    plugins[plugin->toolId()] = plugin; // 使用 pluginId 作为键
-                    plugin->init(pluginsPath);
-                    qDebug() << "加载插件成功 -" << plugin->toolName() << " (" << plugin->toolId() << ")";
+                    const QString toolId = plugin->toolId(); // 插件 ID
+
+                    // 初始化插件
+                    plugin->init(Application::pluginsPath());
+
+                    // 检查插件是否已存在于启用或禁用列表中
+                    bool isInEnabledList = false;
+                    bool isInDisabledList = false;
+
+                    for (const auto &enabledPlugin : enabledPlugins) {
+                        if (enabledPlugin.id == toolId) {
+                            isInEnabledList = true;
+                            break;
+                        }
+                    }
+
+                    for (const auto &disabledPlugin : disabledPlugins) {
+                        if (disabledPlugin.id == toolId) {
+                            isInDisabledList = true;
+                            break;
+                        }
+                    }
+
+                    // 如果插件既不在启用列表也不在禁用列表中，则添加到启用列表
+                    if (!isInEnabledList && !isInDisabledList) {
+                        Config::PluginMetaData newPluginData;
+                        newPluginData.id = toolId;
+                        newPluginData.name = plugin->toolName();
+                        enabledPlugins.append(newPluginData);
+                        qDebug() << "新插件自动启用 -" << plugin->toolName() << " (" << toolId << ")";
+                    }
+
+                    // 将插件加载到内存
+                    plugins[toolId] = plugin;
+                    qDebug() << "加载插件成功 -" << plugin->toolName() << " (" << toolId << ")";
                 } else {
                     qWarning() << "插件格式错误 -" << file.fileName();
-                    emit loadPluginsError();
                 }
             } else {
                 qCritical() << "插件加载失败 -" << loader.errorString();
-                emit loadPluginsError();
             }
+        }
+    }
+
+    // 删除配置中不存在的插件
+    for (auto it = enabledPlugins.begin(); it != enabledPlugins.end();) {
+        if (!plugins.contains(it->id)) {
+            it = enabledPlugins.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    for (auto it = disabledPlugins.begin(); it != disabledPlugins.end();) {
+        if (!plugins.contains(it->id)) {
+            it = disabledPlugins.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    // 更新配置
+    configManager->setEnabledPlugins(enabledPlugins); // 保存启用列表
+    configManager->setDisabledPlugins(disabledPlugins); // 保存禁用列表
+    configManager->saveConfig();
+
+    // 卸载禁用的插件
+    for (const auto &plugin : disabledPlugins) {
+        if (plugins.contains(plugin.id)) {
+            auto instance = plugins.take(plugin.id);
+            delete instance;
+            qDebug() << "卸载禁用插件 -" << plugin.name << " (" << plugin.id << ")";
         }
     }
 
     emit loadPluginsFinish();
 }
 
-// 获取所有插件
 QMap<QString, DevToolPlugin *> PluginsManager::getPlugins() const {
     return plugins;
 }
 
-// 根据 pluginIds 加载插件
-void PluginsManager::loadPluginsByIds(const QStringList &pluginIds) {
-    QMap<QString, DevToolPlugin *> plugins;
-    QDir pluginsDir(pluginsPath);
-    if (!pluginsDir.exists()) {
-        qWarning() << "插件目录不存在：" << pluginsPath;
-        emit loadPluginsError();
-        return;
-    }
-
-    foreach (const QString &pluginId, pluginIds) {
-        QString pluginDirPath = pluginsDir.filePath(pluginId);
-        QDir pluginDir(pluginDirPath);
-
-        if (!pluginDir.exists()) {
-            qWarning() << "插件目录不存在：" << pluginDirPath;
-            continue;
-        }
-
-        // 查找符合过滤条件的插件文件
-        foreach (const QFileInfo &file, pluginDir.entryInfoList(FILTERS)) {
-            QPluginLoader loader(file.absoluteFilePath());
-            if (loader.load()) {
-                if (auto plugin = qobject_cast<DevToolPlugin *>(loader.instance())) {
-                    this->plugins[plugin->toolId()] = plugin; // 使用 pluginId 作为键
-                    plugins[plugin->toolId()] = plugin;
-                    qDebug() << "加载插件成功 -" << plugin->toolName() << " (" << plugin->toolId() << ")";
-                } else {
-                    qWarning() << "插件格式错误 -" << file.fileName();
-                    emit loadPluginsError();
-                }
-            } else {
-                qCritical() << "插件加载失败 -" << loader.errorString();
-                emit loadPluginsError();
-            }
-        }
-    }
-    emit pluginsAdded(plugins);
-}
-
-// 卸载插件
 void PluginsManager::unloadPluginsByIds(const QStringList &pluginIds) {
     foreach (const QString &pluginId, pluginIds) {
         if (plugins.contains(pluginId)) {
@@ -106,8 +129,61 @@ void PluginsManager::unloadPluginsByIds(const QStringList &pluginIds) {
     }
 }
 
-// 重新加载插件
 void PluginsManager::reLoadPlugins() {
     plugins.clear(); // 清空当前插件
     loadPlugins();   // 重新加载插件
+}
+
+QList<Config::PluginMetaData> PluginsManager::getEnablePlugins() {
+    return configManager->getEnabledPlugins();
+}
+
+QList<Config::PluginMetaData> PluginsManager::getDisablePlugins() {
+    return configManager->getDisabledPlugins();
+}
+void PluginsManager::enablePlugin(const QString &pluginId) {
+    if (plugins.contains(pluginId)) {
+        // 插件已加载，直接更新配置
+        // configManager->moveToEnabled(pluginId);
+        qDebug() << "插件已启用 -" << pluginId;
+    } else {
+        // 插件未加载，尝试从文件系统加载
+        QDir pluginsDir(pluginsPath);
+        QString pluginDirPath = pluginsDir.filePath(pluginId);
+        QDir pluginDir(pluginDirPath);
+
+        foreach (const QFileInfo &file, pluginDir.entryInfoList(FILTERS)) {
+            QPluginLoader loader(file.absoluteFilePath());
+            if (loader.load()) {
+                if (auto plugin = qobject_cast<DevToolPlugin *>(loader.instance())) {
+                    plugins[plugin->toolId()] = plugin; // 加载插件
+                    // configManager->moveToEnabled(pluginId); // 更新配置
+                    qDebug() << "插件加载并启用成功 -" << plugin->toolName() << " (" << plugin->toolId() << ")";
+                    return;
+                } else {
+                    qWarning() << "插件格式错误 -" << file.fileName();
+                }
+            } else {
+                qCritical() << "插件加载失败 -" << loader.errorString();
+            }
+        }
+        qWarning() << "无法加载插件 -" << pluginId;
+    }
+}
+
+void PluginsManager::disablePlugin(const QString &pluginId) {
+    if (plugins.contains(pluginId)) {
+        // 卸载插件实例
+        auto plugin = plugins.take(pluginId);
+        delete plugin;
+        qDebug() << "插件已卸载 -" << pluginId;
+
+        // 更新配置
+        // configManager->moveToDisabled(pluginId);
+        qDebug() << "插件已禁用 -" << pluginId;
+    } else {
+        // 插件未加载，仅更新配置
+        // configManager->moveToDisabled(pluginId);
+        qDebug() << "插件已标记为禁用 -" << pluginId;
+    }
 }

@@ -2,15 +2,10 @@
 #define PLUGINMANAGERDIALOG_H
 
 #include <QDialog>
-#include <QListWidget>
-#include <QDialogButtonBox>
-#include <QPushButton>
-#include <QTemporaryDir>
-#include <QtNetwork/QNetworkAccessManager>
+#include <QTableWidget>
 #include <QtNetwork/QNetworkReply>
+#include <QtNetwork/QNetworkAccessManager>
 #include "pluginsmanager.h"
-#include "application.h"
-
 
 class PluginManagerDialog : public QDialog {
     Q_OBJECT
@@ -18,24 +13,26 @@ class PluginManagerDialog : public QDialog {
 public:
     explicit PluginManagerDialog(PluginsManager* plugins, QWidget* parent = nullptr);
 
-    QStringList disabledPlugins() const;
-
 private slots:
-    void onAccepted();
     void refreshPluginList();
+    void onEnableAll();
+    void onDisableAll();
+    void onUninstallAll();
+    void onCellClicked(int row, int column);
     void onAddFromUrl();
     void onAddFromLocal();
     void onDownloadFinished(QNetworkReply* reply);
-    void onUninstallPlugin(); // 新增：卸载插件槽函数
+    void togglePluginEnable(const QString& pluginId);
+    void uninstallPlugin(const QString& pluginId);
 
 private:
     bool validatePlugin(const QString& pluginPath);
     bool extractAndValidateZip(const QString& zipPath, const QString& targetDir);
-    void uninstallPlugin(const QString& pluginId); // 新增：卸载插件逻辑
+    void updatePluginRow(int row, const QString& pluginId, bool isEnabled);
 
     PluginsManager* pluginsManager;
     QNetworkAccessManager* networkManager;
-    QListWidget* m_pluginList;
+    QTableWidget* m_pluginTable;
     QPushButton* addButtonFromUrl;
     QPushButton* addButtonFromLocal;
 };
