@@ -1,4 +1,5 @@
 #include "pluginmanagerdialog.h"
+#include "scheckboxheaderview.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QMessageBox>
@@ -15,11 +16,13 @@
 #include <QTemporaryDir>
 #include <QHeaderView>
 #include <QCheckBox>
+#include <QLabel>
 
 PluginManagerDialog::PluginManagerDialog(PluginsManager* plugins, QWidget* parent)
     : QDialog(parent), pluginsManager(plugins), networkManager(new QNetworkAccessManager(this)) {
     setWindowTitle(tr("管理插件"));
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
+    checkedPluginIds = new QStringList();
 
     // 设置窗口样式（以第二个版本的按钮颜色为准）
     setStyleSheet(R"(
@@ -59,12 +62,19 @@ PluginManagerDialog::PluginManagerDialog(PluginsManager* plugins, QWidget* paren
     // 插件表格
     m_pluginTable = new QTableWidget(this);
     m_pluginTable->setColumnCount(3);
+    auto  m_checkHeader = new SCheckBoxHeaderView(0, Qt::Horizontal, m_pluginTable);
+    m_pluginTable->setHorizontalHeader(m_checkHeader);   //  这个this指针的父为QTableWidget
+    connect(m_checkHeader,&SCheckBoxHeaderView::checkStatusChange,this,&PluginManagerDialog::onAllCheckBoxToggled);
+
     m_pluginTable->setHorizontalHeaderLabels({tr(""), tr("插件名称"), tr("操作")});
-    m_pluginTable->horizontalHeader()->setStretchLastSection(true);
-    m_pluginTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_pluginTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    m_pluginTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    m_pluginTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
     m_pluginTable->verticalHeader()->setVisible(false);
     m_pluginTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_pluginTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+
+
     refreshPluginList();
     mainLayout->addWidget(m_pluginTable);
 
@@ -104,11 +114,9 @@ PluginManagerDialog::PluginManagerDialog(PluginsManager* plugins, QWidget* paren
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
     mainLayout->addWidget(buttonBox);
 
-    // 表格点击事件
-    connect(m_pluginTable, &QTableWidget::cellClicked, this, &PluginManagerDialog::onCellClicked);
 }
+
 void PluginManagerDialog::refreshPluginList() {
-    m_pluginTable->clearContents();
     m_pluginTable->setRowCount(0);
 
     auto enabledPlugins = pluginsManager->getEnablePlugins();
@@ -135,17 +143,36 @@ void PluginManagerDialog::refreshPluginList() {
 
 void PluginManagerDialog::updatePluginRow(int row, const QString& pluginId, bool isEnabled) {
     // 第一列：启用状态（复选框）
-    auto checkBox = new QCheckBox(this);
-    checkBox->setChecked(isEnabled);
+    // 创建一个用于容纳复选框的 QWidget
+    auto checkboxWidget = new QWidget(this);
+    // 创建水平布局
+    auto checkboxLayout = new QHBoxLayout(checkboxWidget);
+    // 设置布局的边距为 0，避免多余的空白
+    checkboxLayout->setContentsMargins(0, 0, 0, 0);
+    // 设置布局的对齐方式为居中
+    checkboxLayout->setAlignment(Qt::AlignCenter);
+
+    auto checkBox = new QCheckBox(checkboxWidget);
+    if(checkedPluginIds->contains(pluginId)){
+        checkBox->setChecked(true);
+    }
     connect(checkBox, &QCheckBox::toggled, [this, pluginId](bool checked) {
-        if (checked) {
-            pluginsManager->enablePlugin(pluginId);
-        } else {
-            pluginsManager->disablePlugin(pluginId);
+        if(checked){
+            if(!checkedPluginIds->contains(pluginId)){
+                checkedPluginIds->append(pluginId);
+                if(checkedPluginIds->size()==pluginsManager->getPlugins().size()){
+                    // todo header的复选和list同步
+                }
+            }else{
+                checkedPluginIds->removeOne(pluginId);
+            }
         }
-        refreshPluginList();
+
     });
-    m_pluginTable->setCellWidget(row, 0, checkBox);
+    // 将复选框添加到布局中
+    checkboxLayout->addWidget(checkBox);
+    // 将包含复选框的 QWidget 设置为表格单元格的小部件
+    m_pluginTable->setCellWidget(row, 0, checkboxWidget);
 
     // 第二列：插件名称
     auto pluginNameItem = new QTableWidgetItem(pluginId);
@@ -330,35 +357,6 @@ void PluginManagerDialog::uninstallPlugin(const QString& pluginId) {
     // }
 }
 
-// void PluginManagerDialog::onDownloadFinished(QNetworkReply* reply) {
-//     if (reply->error() == QNetworkReply::NoError) {
-//         QByteArray data = reply->readAll();
-//         QString fileName = QFileInfo(reply->url().path()).fileName();
-//         QString tempZipPath = QDir::tempPath() + "/" + fileName;
-
-//         QFile file(tempZipPath);
-//         if (file.open(QIODevice::WriteOnly)) {
-//             file.write(data);
-//             file.close();
-
-//             QString pluginsDir = Application::pluginsPath();
-//             if (extractAndValidateZip(tempZipPath, pluginsDir)) {
-//                 QMessageBox::information(this, tr("成功"), tr("插件下载并添加成功！"));
-//                 refreshPluginList();
-//             } else {
-//                 QMessageBox::warning(this, tr("错误"), tr("下载的压缩包不包含有效插件。"));
-//             }
-
-//             QFile::remove(tempZipPath);
-//         } else {
-//             QMessageBox::warning(this, tr("错误"), tr("无法保存下载的插件。"));
-//         }
-//     } else {
-//         QMessageBox::warning(this, tr("错误"), tr("下载插件失败：%1").arg(reply->errorString()));
-//     }
-//     reply->deleteLater();
-// }
-
 void PluginManagerDialog::togglePluginEnable(const QString& pluginId) {
     if (!pluginsManager->getPlugins().contains(pluginId)) {
         qWarning() << "插件不存在：" << pluginId;
@@ -380,4 +378,18 @@ void PluginManagerDialog::togglePluginEnable(const QString& pluginId) {
 
     // // 刷新插件列表以更新界面
     // refreshPluginList();
+}
+
+void PluginManagerDialog::onAllCheckBoxToggled(bool checked) {
+    QStringList keys = pluginsManager->getPlugins().keys();
+    if(checked){
+        for (auto pluginId = keys.begin(); pluginId != keys.end(); ++pluginId) {
+            if (!checkedPluginIds->contains(*pluginId)) {
+                checkedPluginIds->append(*pluginId);
+            }
+        }
+    }else{
+        checkedPluginIds->clear();
+    }
+    refreshPluginList();
 }

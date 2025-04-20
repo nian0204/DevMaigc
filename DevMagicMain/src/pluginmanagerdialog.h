@@ -24,6 +24,7 @@ private slots:
     void onDownloadFinished(QNetworkReply* reply);
     void togglePluginEnable(const QString& pluginId);
     void uninstallPlugin(const QString& pluginId);
+    void onAllCheckBoxToggled(bool checked);
 
 private:
     bool validatePlugin(const QString& pluginPath);
@@ -35,6 +36,7 @@ private:
     QTableWidget* m_pluginTable;
     QPushButton* addButtonFromUrl;
     QPushButton* addButtonFromLocal;
+    QStringList *checkedPluginIds;
 };
 
 #endif // PLUGINMANAGERDIALOG_H

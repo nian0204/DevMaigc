@@ -42,6 +42,7 @@ add_executable(DevMagic
     src/settingsdialog.h src/settingsdialog.cpp
     src/pluginmanagerdialog.h src/pluginmanagerdialog.cpp
     src/listwidegt.h src/listwidegt.cpp
+    src/scheckboxheaderview.h
 
 )
 target_link_libraries(DevMagic PRIVATE

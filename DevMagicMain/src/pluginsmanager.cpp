@@ -179,7 +179,7 @@ void PluginsManager::disablePlugin(const QString &pluginId) {
         qDebug() << "插件已卸载 -" << pluginId;
 
         // 更新配置
-        // configManager->moveToDisabled(pluginId);
+        configManager->moveToDisabled(pluginId);
         qDebug() << "插件已禁用 -" << pluginId;
     } else {
         // 插件未加载，仅更新配置
