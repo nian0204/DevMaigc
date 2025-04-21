@@ -41,12 +41,16 @@ public:
     void enablePlugin(const QString &pluginId); // 启用插件
     void disablePlugin(const QString &pluginId); // 禁用插件
 
+    void loadPluginsWithoutCheckConfig(QString pluginId);
+
 signals:
     void pluginsAdded(QMap<QString, DevToolPlugin *> &plugins);
     void pluginRemoved(QMap<QString, DevToolPlugin *> &plugins);
     void pluginMapUpdated(const QMap<QString, DevToolPlugin *> &newMap);
     void loadPluginsFinish();
     void loadPluginsError();
+    void loadPluginFinish(QString pluginId);
+    void unloadPluginFinish(QString pluginId);
 };
 
 #endif // PLUGINSMANAGER_H

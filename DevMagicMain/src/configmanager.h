@@ -75,6 +75,7 @@ public:
     void loadConfig();
     void saveConfig();
     void moveToDisabled(const QString & pluginId);
+    void moveToEnabled(const QString & pluginId);
 
 signals:
     void themeChanged();

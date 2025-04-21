@@ -132,6 +132,16 @@ void ConfigManager::moveToDisabled(const QString & pluginId){
         }
     }
 }
+void ConfigManager::moveToEnabled(const QString & pluginId){
+    for (auto data = m_config.disabledPlugins.begin();data!=m_config.disabledPlugins.end();data++) {
+        if(data->id==pluginId){
+            m_config.enabledPlugins.append(*data);
+            m_config.disabledPlugins.removeOne(*data);
+            this->saveConfig();
+            return;
+        }
+    }
+}
 void ConfigManager::setEnabledPlugins(QList<Config::PluginMetaData> plugins){
     m_config.enabledPlugins = plugins;
 }

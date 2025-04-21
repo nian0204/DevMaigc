@@ -44,6 +44,27 @@ void ListWidegt::setupUI(){
     resize(800, 600); // 设置窗口大小
 };
 
+void ListWidegt::addPlugin(QString pluginId){
+    auto plugin = pluginsManager->getPlugins().find(pluginId);
+
+    stackedWidget->addWidget(plugin.value()->widget);
+
+    listModel->insertRow(listModel->rowCount()); //在尾部插入一空行
+    //QModelIndex index;
+    QModelIndex index=listModel->index(listModel->rowCount()-1,0);//获取最后一行
+
+    listModel->setData(index,plugin.value()->toolName(),Qt::DisplayRole);//设置显示文字
+}
+void ListWidegt::removePlugin(QString pluginId){
+    auto plugin = pluginsManager->getPlugins().find(pluginId);
+
+
+    stackedWidget->removeWidget(plugin.value()->widget);
+    auto index = listModel->stringList().indexOf(plugin.value()->toolName());
+    if(index!=-1){
+        listModel->removeRow(index);
+    }
+}
 void ListWidegt::showPlugins() {
     QStringList pluginNames;
 
@@ -106,5 +127,7 @@ void ListWidegt::showPlugins() {
     if (!pluginNames.isEmpty()) {
         listView->setCurrentIndex(listModel->index(0));
     }
+    connect(pluginsManager,&PluginsManager::loadPluginFinish,this,&ListWidegt::addPlugin);
+    connect(pluginsManager,&PluginsManager::unloadPluginFinish,this,&ListWidegt::removePlugin);
 }
 
