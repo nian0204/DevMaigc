@@ -1,12 +1,15 @@
 #include "listwidegt.h"
 #include <QStyledItemDelegate>
 #include <QVBoxLayout>
+#include <QLabel>
+#include <QMouseEvent>
+#include <QSpacerItem>
 
-ListWidegt::ListWidegt(QWidget* parent):QWidget(parent), listView(new QListView(this)), listModel(new QStringListModel(this)), stackedWidget(new QStackedWidget(this)) {
+ListWidegt::ListWidegt(QWidget* parent):QWidget(parent), pluginListWidget(new QWidget(this)), listModel(new QStringListModel(this)), stackedWidget(new QStackedWidget(this)) {
     setupUI();
 }
 
-ListWidegt::ListWidegt(PluginsManager *pluginsManager,QWidget* parent):QWidget(parent), listView(new QListView(this)), listModel(new QStringListModel(this)), stackedWidget(new QStackedWidget(this)){
+ListWidegt::ListWidegt(PluginsManager *pluginsManager,QWidget* parent):QWidget(parent), pluginListWidget(new QWidget(this)), listModel(new QStringListModel(this)), stackedWidget(new QStackedWidget(this)){
     this->pluginsManager = pluginsManager;
     setupUI();
     showPlugins();
@@ -21,17 +24,18 @@ void ListWidegt::setupUI(){
     splitter = new QSplitter(Qt::Horizontal, this);
 
     // 左侧插件列表
-    listView->setMaximumWidth(300); // 设置最大宽度
-    listView->setMinimumWidth(150); // 设置最小宽度
-    listView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    listView->setVerticalScrollMode(QListView::ScrollPerPixel);
-    listView->viewport()->setStyleSheet("background: transparent;"); // 透明滚动区域
-    splitter->addWidget(listView);
+    QVBoxLayout* pluginListLayout = new QVBoxLayout(pluginListWidget);
+    // 设置布局的边距和间距为 0，实现顶格显示
+    pluginListLayout->setContentsMargins(0, 0, 0, 0);
+    pluginListLayout->setSpacing(0);
+    pluginListWidget->setLayout(pluginListLayout);
+    pluginListWidget->setMaximumWidth(300); // 设置最大宽度
+    pluginListWidget->setMinimumWidth(150); // 设置最小宽度
+    splitter->addWidget(pluginListWidget);
 
     // 右侧插件内容区域
     stackedWidget->setStyleSheet("background-color: #f5f5f5;"); // 设置背景颜色
     splitter->addWidget(stackedWidget);
-
 
     // 设置分割器初始比例
     splitter->setStretchFactor(0, 1); // 左侧占1份
@@ -45,43 +49,12 @@ void ListWidegt::setupUI(){
 };
 
 void ListWidegt::addPlugin(QString pluginId){
-    auto plugin = pluginsManager->getPlugins().find(pluginId);
-
-    stackedWidget->addWidget(plugin.value()->widget);
-
-    listModel->insertRow(listModel->rowCount()); //在尾部插入一空行
-    //QModelIndex index;
-    QModelIndex index=listModel->index(listModel->rowCount()-1,0);//获取最后一行
-
-    listModel->setData(index,plugin.value()->toolName(),Qt::DisplayRole);//设置显示文字
-}
-void ListWidegt::removePlugin(QString pluginId){
-    auto plugin = pluginsManager->getPlugins().find(pluginId);
-
-
-    stackedWidget->removeWidget(plugin.value()->widget);
-    auto index = listModel->stringList().indexOf(plugin.value()->toolName());
-    if(index!=-1){
-        listModel->removeRow(index);
-    }
-}
-void ListWidegt::showPlugins() {
-    QStringList pluginNames;
-
-    for (const auto& plugin : this->pluginsManager->getPlugins().values()) {
-        pluginNames.append(plugin->toolName()); // 使用插件名称填充列表
-        stackedWidget->addWidget(plugin->widget); // 创建插件页面并添加到stackedWidget
-    }
-
-    listModel->setStringList(pluginNames); // 设置插件名称模型
-    listView->setModel(listModel);
-
-
-
-    // 美化左侧栏
-    listView->setItemDelegate(new QStyledItemDelegate(listView)); // 使用默认样式代理
-    listView->setStyleSheet(R"(
-        QListView {
+    auto pluginKV = pluginsManager->getPlugins().find(pluginId);
+    auto plugin = pluginKV.value();
+    stackedWidget->insertWidget(0,plugin->widget);
+    ClickableLabel* label = new ClickableLabel(plugin->name, pluginListWidget);
+    label->setStyleSheet(R"(
+        ClickableLabel {
             background: #f9f9f9; /* 同步右侧整体背景 */
             color: #333; /* 深灰文字 */
             font-family: 'Segoe UI';
@@ -89,45 +62,98 @@ void ListWidegt::showPlugins() {
             border: none;
             border-radius: 4px; /* 同步右侧控件圆角 */
             padding: 4px;
-            margin-right: 8px;
-        }
-        QListView::item {
-            border-radius: 4px; /* 统一圆角 */
-            margin: 4px 0; /* 增加呼吸感 */
-            padding-left: 12px; /* 图标间距 */
+            margin: 4px 0;
+            text-align: left;
             border-left: 2px solid transparent; /* 选中指示线占位 */
         }
-        QListView::item:hover {
+        ClickableLabel:hover {
             background: #f0f0f0; /* 悬停色接近右侧输入框悬停 */
             border-left: 2px solid #4A90E2; /* 预亮指示线 */
         }
-        QListView::item:selected {
+        ClickableLabel[selected="true"] {
             background: #4A90E2; /* 主色填充 */
             color: white;
             border-left: 2px solid #2B6BD8; /* 深色指示线增强层次 */
-            margin-left: -2px; /* 视觉对齐 */
-            padding-left: 10px; /* 修正内边距 */
-        }
-        QListView::item:selected:hover {
-            background: #357AB7; /* 同步按钮悬停色 */
         }
     )");
-
-    // 新增分割线（模拟右侧工具的边框）
-    splitter->setStyleSheet("QSplitter::handle { background: #ddd; width: 1px; }");
-
-    // 连接listView的选择信号到stackedWidget的切换槽
-    connect(listView->selectionModel(), &QItemSelectionModel::currentChanged,
-            [this](const QModelIndex& current, const QModelIndex&) {
-                if (current.isValid()) {
-                    stackedWidget->setCurrentIndex(current.row());
-                }
-            });
-    // 默认选择第一个插件
-    if (!pluginNames.isEmpty()) {
-        listView->setCurrentIndex(listModel->index(0));
+    label->setProperty("selected", true);
+    QVBoxLayout* pluginListLayout = qobject_cast<QVBoxLayout*>(pluginListWidget->layout());
+    pluginListLayout->insertWidget(0,label);
+    for (int i = 0; i < pluginListLayout->count(); ++i) {
+        ClickableLabel* otherLabel = qobject_cast<ClickableLabel*>(pluginListLayout->itemAt(i)->widget());
+        if (otherLabel && otherLabel != label) {
+            otherLabel->setProperty("selected", false);
+            otherLabel->style()->unpolish(otherLabel);
+            otherLabel->style()->polish(otherLabel);
+        }
     }
+
+    connect(label, &ClickableLabel::clicked, [this, label, index = stackedWidget->count() - 1]() {
+        // 取消其他标签的选中状态
+        QVBoxLayout* layout = qobject_cast<QVBoxLayout*>(pluginListWidget->layout());
+        for (int i = 0; i < layout->count(); ++i) {
+            ClickableLabel* otherLabel = qobject_cast<ClickableLabel*>(layout->itemAt(i)->widget());
+            if (otherLabel && otherLabel != label) {
+                otherLabel->setProperty("selected", false);
+                otherLabel->style()->unpolish(otherLabel);
+                otherLabel->style()->polish(otherLabel);
+            }
+        }
+        // 设置当前标签为选中状态
+        label->setProperty("selected", true);
+        label->style()->unpolish(label);
+        label->style()->polish(label);
+        stackedWidget->setCurrentIndex(index);
+    });
+}
+void ListWidegt::removePlugin(QString pluginId){
+    auto plugin = pluginsManager->getPlugins().find(pluginId);
+
+    stackedWidget->removeWidget(plugin.value()->widget);
+
+    QVBoxLayout* pluginListLayout = qobject_cast<QVBoxLayout*>(pluginListWidget->layout());
+    for (int i = 0; i < pluginListLayout->count(); ++i) {
+        ClickableLabel* label = qobject_cast<ClickableLabel*>(pluginListLayout->itemAt(i)->widget());
+        if (label && label->text() == plugin.value()->name) {
+            pluginListLayout->removeWidget(label);
+            delete label;
+            break;
+        }
+    }
+}
+
+void ListWidegt::showPlugins() {
+    // 清空现有标签
+    QVBoxLayout* pluginListLayout = qobject_cast<QVBoxLayout*>(pluginListWidget->layout());
+    while (pluginListLayout->count() > 0) {
+        QWidget* widget = pluginListLayout->takeAt(0)->widget();
+        if (widget) {
+            delete widget;
+        }
+    }
+
+    // 清空现有页面
+    while (stackedWidget->count() > 0) {
+        QWidget* widget = stackedWidget->widget(0);
+        stackedWidget->removeWidget(widget);
+    }
+
+    for (const auto& plugin : this->pluginsManager->getPlugins().values()) {
+        addPlugin(plugin->id);
+    }
+
+    // 添加弹簧填充剩余空间
+    QSpacerItem* spacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
+    pluginListLayout->addItem(spacer);
+
+    // 默认选择第一个插件
+    if (pluginListLayout->count() > 0) {
+        ClickableLabel* firstLabel = qobject_cast<ClickableLabel*>(pluginListLayout->itemAt(0)->widget());
+        if (firstLabel) {
+            // firstLabel->click();
+        }
+    }
+
     connect(pluginsManager,&PluginsManager::loadPluginFinish,this,&ListWidegt::addPlugin);
     connect(pluginsManager,&PluginsManager::unloadPluginFinish,this,&ListWidegt::removePlugin);
 }
-

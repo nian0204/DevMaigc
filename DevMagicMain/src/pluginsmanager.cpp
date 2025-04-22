@@ -35,10 +35,9 @@ void PluginsManager::loadPlugins() {
             QPluginLoader loader(file.absoluteFilePath());
             if (loader.load()) {
                 if (auto plugin = qobject_cast<DevToolPlugin *>(loader.instance())) {
-                    const QString toolId = plugin->toolId(); // 插件 ID
-
                     // 初始化插件
                     plugin->init(Application::pluginsPath());
+                    const QString toolId = plugin->id; // 插件 ID
 
                     // 检查插件是否已存在于启用或禁用列表中
                     bool isInEnabledList = false;
@@ -62,14 +61,14 @@ void PluginsManager::loadPlugins() {
                     if (!isInEnabledList && !isInDisabledList) {
                         Config::PluginMetaData newPluginData;
                         newPluginData.id = toolId;
-                        newPluginData.name = plugin->toolName();
+                        newPluginData.name = plugin->name;
                         enabledPlugins.append(newPluginData);
-                        qDebug() << "新插件自动启用 -" << plugin->toolName() << " (" << toolId << ")";
+                        qDebug() << "新插件自动启用 -" << plugin->name << " (" << toolId << ")";
                     }
 
                     // 将插件加载到内存
                     plugins[toolId] = plugin;
-                    qDebug() << "加载插件成功 -" << plugin->toolName() << " (" << toolId << ")";
+                    qDebug() << "加载插件成功 -" << plugin->name << " (" << toolId << ")";
                 } else {
                     qWarning() << "插件格式错误 -" << file.fileName();
                 }
@@ -131,13 +130,15 @@ void PluginsManager::loadPluginsWithoutCheckConfig(QString pluginId) {
             QPluginLoader loader(file.absoluteFilePath());
             if (loader.load()) {
                 if (auto plugin = qobject_cast<DevToolPlugin *>(loader.instance())) {
-                    const QString toolId = plugin->toolId(); // 插件 ID
+                    // 初始化插件
+                    plugin->init(Application::pluginsPath());
+                    const QString toolId = plugin->id; // 插件 ID
                     if(toolId==pluginId){
-                        // 初始化插件
-                        plugin->init(Application::pluginsPath());
                         // 将插件加载到内存
                         plugins[toolId] = plugin;
-                        qDebug() << "加载插件成功 -" << plugin->toolName() << " (" << toolId << ")";
+                        qDebug() << "加载插件成功 -" << plugin->name << " (" << toolId << ")";
+                    }else{
+                        delete plugin;
                     }
                 } else {
                     qWarning() << "插件格式错误 -" << file.fileName();
