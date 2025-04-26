@@ -4,6 +4,9 @@
 #include <QJsonDocument>
 #include <QComboBox>
 #include <QLineEdit>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 #include "jsonconverter.h"
 // 使用 JsonEditor 作为输入编辑器
 #include "jsoneditor.h"

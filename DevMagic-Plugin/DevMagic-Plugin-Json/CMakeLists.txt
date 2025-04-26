@@ -21,12 +21,10 @@ add_compile_options(
 
 # ========== 源文件与头文件 ==========
 set(SOURCES
-    # src/main
+    src/main.cpp
     src/jsonplugin.cpp  # 唯一编译单元
-    src/jsonconverter.h
-    src/jsoneditor.h
-    src/jsonplugin.h
-    include/devplugin.h
+    src/jsoneditor.cpp
+    src/expandbutton.cpp
 )
 
 set(CMAKE_AUTOMOC ON)        # 启用元对象编译
@@ -40,24 +38,32 @@ qt6_add_resources(RESOURCES
 )
 
 # ========== 插件目标配置 ==========
-add_library(LandcDevMagicPluginJson SHARED ${SOURCES} ${RESOURCES}
-    src/linenumberarea.h
-    src/jsoneditor.cpp
-
-    src/javaconverter.h
-    src/goconverter.h
-    src/xmlconverter.h
-)
-
-# add_executable(LandcDevMagicPluginJson ${SOURCES} ${RESOURCES}
-#     src/main.cpp
+# add_library(LandcDevMagicPluginJson SHARED ${SOURCES} ${RESOURCES}
 #     src/linenumberarea.h
 #     src/jsoneditor.cpp
 
 #     src/javaconverter.h
 #     src/goconverter.h
 #     src/xmlconverter.h
+#     src/jsonhighlighter.h
+#     src/expandbutton.h
 # )
+
+add_executable(LandcDevMagicPluginJson ${SOURCES} ${RESOURCES}
+    src/main.cpp
+    src/linenumberarea.h
+    src/jsoneditor.cpp
+
+    src/jsoneditor.h
+    src/javaconverter.h
+    src/goconverter.h
+    src/xmlconverter.h
+    src/jsonhighlighter.h
+    src/expandbutton.h
+    src/expandbutton.cpp
+    src/jsonhighlighter.cpp
+    include/devplugin.h
+)
 
 # 设置头文件目录（必须在 add_library 之后）
 target_include_directories(LandcDevMagicPluginJson PRIVATE
@@ -66,11 +72,11 @@ target_include_directories(LandcDevMagicPluginJson PRIVATE
 )
 
 # 设置输出名称和目录
-set_target_properties(LandcDevMagicPluginJson PROPERTIES
-    OUTPUT_NAME "LandcDevMagicPluginJson"  # 最终DLL/so名称
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/plugins"
-    CXX_VISIBILITY_PRESET hidden  # 隐藏非导出符号
-)
+# set_target_properties(LandcDevMagicPluginJson PROPERTIES
+#     OUTPUT_NAME "LandcDevMagicPluginJson"  # 最终DLL/so名称
+#     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/plugins"
+#     CXX_VISIBILITY_PRESET hidden  # 隐藏非导出符号
+# )
 
 # ========== 链接与编译选项 ==========
 target_link_libraries(LandcDevMagicPluginJson PRIVATE
@@ -79,11 +85,11 @@ target_link_libraries(LandcDevMagicPluginJson PRIVATE
     Qt6::Core
 )
 
-target_sources(LandcDevMagicPluginJson PRIVATE
-    ${QRC_RESOURCES}
-)
-install(TARGETS LandcDevMagicPluginJson
-    RUNTIME DESTINATION "plugins"  COMPONENT runtime  # Windows DLL
-    LIBRARY DESTINATION "plugins"  COMPONENT runtime  # Linux/macOS 动态库
-    ARCHIVE DESTINATION "lib"      COMPONENT dev      # 静态库（可选）
-)
+# target_sources(LandcDevMagicPluginJson PRIVATE
+#     ${QRC_RESOURCES}
+# )
+# install(TARGETS LandcDevMagicPluginJson
+#     RUNTIME DESTINATION "plugins"  COMPONENT runtime  # Windows DLL
+#     LIBRARY DESTINATION "plugins"  COMPONENT runtime  # Linux/macOS 动态库
+#     ARCHIVE DESTINATION "lib"      COMPONENT dev      # 静态库（可选）
+# )

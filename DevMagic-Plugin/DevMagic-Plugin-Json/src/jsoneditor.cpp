@@ -4,8 +4,14 @@
 #include <QPainter>
 #include <QLinearGradient>
 #include "linenumberarea.h"
-JsonEditor::JsonEditor(QWidget *parent) : QPlainTextEdit(parent) {
+#include <QSyntaxHighlighter>
+#include <QMap>
+#include <QPushButton>
+#include <QPair>
+#include "jsonhighlighter.h"
 
+
+JsonEditor::JsonEditor(QWidget *parent) : QPlainTextEdit(parent) {
     lineNumberArea = new LineNumberArea(this);
 
     // 统一基础样式
@@ -36,20 +42,34 @@ JsonEditor::JsonEditor(QWidget *parent) : QPlainTextEdit(parent) {
     updateLineNumberAreaWidth(0);
     highlightCurrentLine();
     m_bInit = true;
+
+    new JsonHighlighter(document());
 }
-void JsonEditor::SetPainText(QString strText){
-    this->blockSignals(true);//处理期间不响应各种事件
+
+void JsonEditor::SetPainText(QString strText) {
+    this->blockSignals(true); // 处理期间不响应各种事件
     this->setPlainText(strText);
     this->blockSignals(false);
-    updateLineNumberAreaWidth(0);//更新行号(位置和显示文字)
+    updateLineNumberAreaWidth(0); // 更新行号(位置和显示文字)
+
+    // 解析 JSON 数据，找到花括号的位置并添加展开按钮
+    QTextDocument *doc = document();
+    for (int i = 0; i < doc->blockCount(); ++i) {
+        QTextBlock block = doc->findBlockByNumber(i);
+        QString text = block.text();
+        for (int j = 0; j < text.length(); ++j) {
+            if (text[j] == '{') {
+                addExpandButton(i, lineNumberAreaWidth() + j * fontMetrics().horizontalAdvance(' '));
+            }
+        }
+    }
 }
+
 // 行号区域尺寸调整（匹配内边距）
-int JsonEditor::lineNumberAreaWidth()
-{
+int JsonEditor::lineNumberAreaWidth() {
     int digits = 1;
     int max = qMax(1, blockCount());
-    while (max >= 10)
-    {
+    while (max >= 10) {
         max /= 10;
         ++digits;
     }
@@ -59,26 +79,25 @@ int JsonEditor::lineNumberAreaWidth()
     return space;
 }
 
-void JsonEditor::updateLineNumberAreaWidth(int /* newBlockCount */){
-    setViewportMargins(lineNumberAreaWidth(), 0, 0, 0);//宽度变化了，会触发resize，从而设置行号的位置
+void JsonEditor::updateLineNumberAreaWidth(int /* newBlockCount */) {
+    setViewportMargins(lineNumberAreaWidth(), 0, 0, 0); // 宽度变化了，会触发 resize，从而设置行号的位置
+    updateExpandButtonPositions();
 }
 
-void JsonEditor::updateLineNumberArea(const QRect &rect, int dy){
+void JsonEditor::updateLineNumberArea(const QRect &rect, int dy) {
     if (dy)
-        lineNumberArea->scroll(0, dy);//滚动会用到
+        lineNumberArea->scroll(0, dy); // 滚动会用到
     else
         lineNumberArea->update(0, rect.y(), lineNumberArea->width(), rect.height());
 
-    QRect rctmp =viewport()->rect();
+    QRect rctmp = viewport()->rect();
 
-    if (rect.contains(viewport()->rect()))//
+    if (rect.contains(viewport()->rect())) //
         updateLineNumberAreaWidth(0);
 }
 
-void JsonEditor::resizeEvent(QResizeEvent *e){
-
-    if(!m_bInit)
-    {
+void JsonEditor::resizeEvent(QResizeEvent *e) {
+    if (!m_bInit) {
         return;
     }
 
@@ -86,41 +105,37 @@ void JsonEditor::resizeEvent(QResizeEvent *e){
 
     QRect cr = contentsRect();
 
-    lineNumberArea->setGeometry(QRect(cr.left(), cr.top(), lineNumberAreaWidth(), cr.height()));//设置行号位置
+    lineNumberArea->setGeometry(QRect(cr.left(), cr.top(), lineNumberAreaWidth(), cr.height())); // 设置行号位置
+    updateExpandButtonPositions();
 }
 
-//换行会先触发slotCursorPositionChanged，再触发这个
-void JsonEditor::slotBlockCountChanged(int newBlockCount){
-
-    if(!m_bInit)
-    {
+// 换行会先触发 slotCursorPositionChanged，再触发这个
+void JsonEditor::slotBlockCountChanged(int newBlockCount) {
+    if (!m_bInit) {
         return;
     }
 
     updateLineNumberAreaWidth(0);
-
 }
-//光标闪动，文字变化，等，都会一直触发此
-void JsonEditor::slotUpdateRequest(const QRect &rect, int dy){
 
-    if(!m_bInit)
-    {
+// 光标闪动，文字变化，等，都会一直触发此
+void JsonEditor::slotUpdateRequest(const QRect &rect, int dy) {
+    if (!m_bInit) {
         return;
     }
 
     updateLineNumberArea(rect, dy);
 }
 
-//不在同一行，在同一行，只要位置变都会触发；选中文字时位置也会变
-void JsonEditor::slotCursorPositionChanged(){
-
-    if(!m_bInit)
-    {
+// 不在同一行，在同一行，只要位置变都会触发；选中文字时位置也会变
+void JsonEditor::slotCursorPositionChanged() {
+    if (!m_bInit) {
         return;
     }
 
     highlightCurrentLine();
 }
+
 void JsonEditor::keyPressEvent(QKeyEvent *event) {
     QTextCursor cursor = textCursor();
 
@@ -163,14 +178,15 @@ void JsonEditor::keyPressEvent(QKeyEvent *event) {
     // 默认处理其他按键
     QPlainTextEdit::keyPressEvent(event);
 }
-//当前行
+
+// 当前行
 void JsonEditor::highlightCurrentLine() {
     QList<QTextEdit::ExtraSelection> extraSelections;
     if (!isReadOnly()) {
         QTextEdit::ExtraSelection selection;
 
         // ✅ 正确构造渐变：先定义起点/终点，再设置颜色停止点
-        QLinearGradient gradient(0, 0, 1, 0);  // Qt6推荐使用qreal参数构造
+        QLinearGradient gradient(0, 0, 1, 0);  // Qt6 推荐使用 qreal 参数构造
         gradient.setColorAt(0, QColor(0xE9, 0xF5, 0xFF));  // 起始颜色
         gradient.setColorAt(1, QColor(0xD5, 0xEB, 0xFF));  // 结束颜色
 
@@ -206,18 +222,20 @@ void JsonEditor::lineNumberAreaPaintEvent(QPaintEvent *event) {
         blockNumber++;
     }
 }
-// 获取行号（从1开始，基于文本位置）
+
+// 获取行号（从 1 开始，基于文本位置）
 int JsonEditor::getLineNumber(int position) const {
     if (position < 0) return 0;
     QTextBlock block = document()->findBlock(position);
     return block.isValid() ? block.blockNumber() + 1 : 0;
 }
 
-// 获取列号（从0开始，基于文本位置）
+// 获取列号（从 0 开始，基于文本位置）
 int JsonEditor::getColumnNumber(int position) const {
     QTextBlock block = document()->findBlock(position);
     return block.isValid() ? (position - block.position()) : 0;
 }
+
 void JsonEditor::setCursorPosition(int line, int column) {
     QTextBlock block = document()->findBlockByNumber(line - 1);
     if (!block.isValid()) return;
@@ -227,4 +245,71 @@ void JsonEditor::setCursorPosition(int line, int column) {
     cursor.setPosition(pos);
     setTextCursor(cursor);
     ensureCursorVisible();
+}
+
+void JsonEditor::addExpandButton(int line, int position) {
+    if (m_expandButtons.contains(line)) {
+        return;
+    }
+
+    ExpandButton *button = new ExpandButton(this);
+    button->move(position, line * fontMetrics().height());
+    button->show();
+    m_expandButtons[line] = button;
+
+    connect(button, &ExpandButton::toggled, [this, line](bool expanded) {
+        QTextDocument *doc = document();
+        QTextBlock startBlock = doc->findBlockByNumber(line);
+        int startPos = startBlock.position();
+        int endPos = startPos;
+        int depth = 1;  // 用于记录花括号的嵌套深度
+        QTextBlock currentBlock = startBlock;
+
+        // 寻找对应的结束花括号位置
+        while (depth > 0 && currentBlock.isValid()) {
+            QString text = currentBlock.text();
+            for (int i = 0; i < text.length(); ++i) {
+                if (text[i] == '{') {
+                    depth++;
+                } else if (text[i] == '}') {
+                    depth--;
+                    if (depth == 0) {
+                        endPos = currentBlock.position() + i + 1;
+                        break;
+                    }
+                }
+            }
+            currentBlock = currentBlock.next();
+        }
+
+        if (expanded) {
+            // 展开，显示原本隐藏的内容
+            QTextCursor cursor(doc);
+            cursor.setPosition(startPos);
+            cursor.setPosition(endPos, QTextCursor::KeepAnchor);
+            cursor.removeSelectedText();  // 先清除之前隐藏的占位符
+            QString originalJson = doc->toPlainText();
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(originalJson.toUtf8());
+            QString restoredJson = jsonDoc.toJson(QJsonDocument::Indented);
+            cursor.insertText(restoredJson.mid(startPos, endPos - startPos));
+        } else {
+            // 收缩，隐藏内容并显示占位符
+            QTextCursor cursor(doc);
+            cursor.setPosition(startPos);
+            cursor.setPosition(endPos, QTextCursor::KeepAnchor);
+            QString selectedText = cursor.selectedText();
+            if (!selectedText.contains("Object{...}")) {  // 检查是否已有占位符
+                cursor.removeSelectedText();
+                cursor.insertText("Object{...}");  // 占位符
+            }
+        }
+    });
+}
+
+void JsonEditor::updateExpandButtonPositions() {
+    for (auto it = m_expandButtons.begin(); it != m_expandButtons.end(); ++it) {
+        int line = it.key();
+        ExpandButton *button = it.value();
+        button->move(lineNumberAreaWidth(), line * fontMetrics().height());
+    }
 }

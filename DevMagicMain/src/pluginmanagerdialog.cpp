@@ -163,9 +163,9 @@ void PluginManagerDialog::updatePluginRow(int row, const QString& pluginId, bool
                 if(checkedPluginIds->size()==pluginsManager->getPlugins().size()){
                     // todo header的复选和list同步
                 }
-            }else{
-                checkedPluginIds->removeOne(pluginId);
             }
+        }else{
+            checkedPluginIds->removeOne(pluginId);
         }
 
     });
@@ -217,16 +217,16 @@ void PluginManagerDialog::updatePluginRow(int row, const QString& pluginId, bool
 
 void PluginManagerDialog::onEnableAll() {
     auto allPlugins = pluginsManager->getPlugins();
-    for (auto it = allPlugins.begin(); it != allPlugins.end(); ++it) {
-        pluginsManager->enablePlugin(it.key());
+    for (auto it = checkedPluginIds->begin(); it !=  checkedPluginIds->end(); ++it) {
+        pluginsManager->enablePlugin(*it);
     }
     refreshPluginList();
 }
 
 void PluginManagerDialog::onDisableAll() {
     auto allPlugins = pluginsManager->getPlugins();
-    for (auto it = allPlugins.begin(); it != allPlugins.end(); ++it) {
-        pluginsManager->disablePlugin(it.key());
+    for (auto it = checkedPluginIds->begin(); it !=  checkedPluginIds->end(); ++it) {
+        pluginsManager->disablePlugin(*it);
     }
     refreshPluginList();
 }

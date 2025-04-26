@@ -5,6 +5,7 @@
 #include <QtGui/QTextBlock>
 #include <QtGui/QPainter>
 #include <QJsonParseError>
+#include "expandbutton.h"
 
 class JsonEditor : public QPlainTextEdit {
     Q_OBJECT
@@ -31,11 +32,13 @@ private slots:
 
 private:
     QWidget *lineNumberArea;
+    QMap<int, ExpandButton*> m_expandButtons;  // 确保这行存在
     bool m_bInit = false;
     void updateLineNumberAreaWidth(int newBlockCount);
     void highlightCurrentLine();
     void updateLineNumberArea(const QRect &rect, int dy);
-    // 替代 blockBoundingGeometry 的方法
+    void addExpandButton(int line, int position);
+    void updateExpandButtonPositions();
     QRect calculateBlockRect(const QTextBlock &block) const {
         QTextCursor cursor(block);
         cursor.movePosition(QTextCursor::EndOfBlock);
